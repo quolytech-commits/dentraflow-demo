@@ -12,8 +12,13 @@ export default function AdminDashboard() {
   const [doctors, setDoctors] = useState(MOCK_DOCTORS)
   const [showAddDoctor, setShowAddDoctor] = useState(false)
   const [newDoctorName, setNewDoctorName] = useState('')
+  const [payments, setPayments] = useState(MOCK_PAYMENTS)
 
-  const totalRevenue = MOCK_PAYMENTS.filter((p) => p.status === 'paguar').reduce((s, p) => s + p.amount, 0)
+  const markPaid = (id: string) => {
+    setPayments((prev) => prev.map((p) => p.id === id ? { ...p, status: 'paguar' as const } : p))
+  }
+
+  const totalRevenue = payments.filter((p) => p.status === 'paguar').reduce((s, p) => s + p.amount, 0)
   const pending = MOCK_APPOINTMENTS.filter((a) => a.status === 'ne-pritje').length
   const inTreatment = MOCK_PATIENTS.filter((p) => p.status === 'ne-trajtim').length
 
@@ -189,9 +194,9 @@ export default function AdminDashboard() {
         <div>
           <h2 className="font-semibold text-foreground mb-3">Paneli Financiar</h2>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
-            <StatCard label="Pagesat Totale" value={`${(MOCK_PAYMENTS.reduce((s, p) => s + p.amount, 0) / 1000).toFixed(0)}K L`} icon={CreditCard} iconBg="bg-blue-50" iconColor="text-blue-600" />
-            <StatCard label="Bilanci i Arkës" value={`${(totalRevenue / 1000).toFixed(0)}K L`} subtext="Pagesa të mbledhura" icon={TrendingUp} iconBg="bg-green-50" iconColor="text-green-600" />
-            <StatCard label="Fatura Papaguara" value={String(MOCK_PAYMENTS.filter((p) => p.status === 'papaguar').length)} subtext="Kërkojnë ndjekje" icon={Users} iconBg="bg-red-50" iconColor="text-red-500" />
+          <StatCard label="Pagesat Totale" value={`${(payments.reduce((s, p) => s + p.amount, 0) / 1000).toFixed(0)}K L`} icon={CreditCard} iconBg="bg-blue-50" iconColor="text-blue-600" />
+          <StatCard label="Bilanci i Arkës" value={`${(totalRevenue / 1000).toFixed(0)}K L`} subtext="Pagesa të mbledhura" icon={TrendingUp} iconBg="bg-green-50" iconColor="text-green-600" />
+          <StatCard label="Fatura Papaguara" value={String(payments.filter((p) => p.status === 'papaguar').length)} subtext="Kërkojnë ndjekje" icon={Users} iconBg="bg-red-50" iconColor="text-red-500" />
           </div>
           <div className="bg-card border border-border rounded-2xl overflow-hidden shadow-sm">
             <div className="overflow-x-auto">
@@ -203,16 +208,24 @@ export default function AdminDashboard() {
                     <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Shuma</th>
                     <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide hidden md:table-cell">Data</th>
                     <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Statusi</th>
+                    <th className="text-right px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Veprime</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
-                  {MOCK_PAYMENTS.map((p) => (
+                  {payments.map((p) => (
                     <tr key={p.id} className="hover:bg-secondary/30 transition-colors">
                       <td className="px-4 py-3 text-sm font-medium text-foreground">{p.patientName}</td>
                       <td className="px-4 py-3 text-sm text-muted-foreground hidden sm:table-cell">{p.service}</td>
                       <td className="px-4 py-3 text-sm font-semibold text-foreground">{p.amount.toLocaleString()} L</td>
                       <td className="px-4 py-3 text-sm text-muted-foreground hidden md:table-cell">{p.date}</td>
                       <td className="px-4 py-3"><StatusBadge status={p.status} /></td>
+                      <td className="px-4 py-3 text-right">
+                        {p.status !== 'paguar' ? (
+                          <button onClick={() => markPaid(p.id)} className="text-xs px-3 py-1.5 rounded-lg bg-green-100 text-green-700 hover:bg-green-200 font-medium transition-colors border border-green-200 active:scale-95">Shëno Paguar</button>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">Paguar</span>
+                        )}
+                      </td>
                     </tr>
                   ))}
                 </tbody>

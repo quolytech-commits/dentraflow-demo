@@ -1,28 +1,221 @@
 'use client'
 
 import { useState } from 'react'
-import { Calendar, Users, CreditCard, Plus, Edit2, X, Clock, CheckCircle } from 'lucide-react'
+import { Calendar, Users, CreditCard, Plus, Edit2, X, Clock, CheckCircle, AlertCircle } from 'lucide-react'
 import { Topbar } from '@/components/topbar'
 import { StatCard } from '@/components/stat-card'
 import { StatusBadge } from '@/components/status-badge'
 import { CalendarWidget } from '@/components/calendar-widget'
-import { AppointmentModal } from '@/components/appointment-modal'
 import { PatientModal } from '@/components/patient-modal'
-import { MOCK_APPOINTMENTS, MOCK_PATIENTS, MOCK_PAYMENTS, Patient, Appointment } from '@/lib/mock-data'
+import { MOCK_APPOINTMENTS, MOCK_PATIENTS, MOCK_PAYMENTS, MOCK_DOCTORS, Patient, Appointment, Payment } from '@/lib/mock-data'
+
+type AppStatus = 'ne-pritje' | 'ne-trajtim' | 'perfunduar' | 'anuluar'
+
+function EditAppointmentModal({
+  appointment,
+  onClose,
+  onSave,
+}: {
+  appointment: Appointment
+  onClose: () => void
+  onSave: (updated: Appointment) => void
+}) {
+  const [form, setForm] = useState({
+    patientName: appointment.patientName,
+    doctorName: appointment.doctorName,
+    date: appointment.date,
+    time: appointment.time,
+    type: appointment.type,
+    status: appointment.status as AppStatus,
+  })
+
+  const update = (k: string, v: string) => setForm((f) => ({ ...f, [k]: v }))
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    onSave({ ...appointment, ...form, status: form.status as AppStatus })
+    onClose()
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="fixed inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative bg-card border border-border rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-border">
+          <h2 className="font-bold text-foreground">Ndrysho Terminin</h2>
+          <button onClick={onClose} className="size-8 flex items-center justify-center rounded-lg hover:bg-secondary transition-colors text-muted-foreground">
+            <X className="size-4" />
+          </button>
+        </div>
+        <form onSubmit={handleSubmit} className="p-5 space-y-4">
+          <div>
+            <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">Pacienti</label>
+            <select
+              required
+              value={form.patientName}
+              onChange={(e) => update('patientName', e.target.value)}
+              className="w-full px-3 py-2.5 rounded-xl border border-border bg-secondary text-foreground text-sm outline-none focus:border-accent focus:ring-2 focus:ring-accent/20 transition-all"
+            >
+              {MOCK_PATIENTS.map((p) => <option key={p.id} value={p.name}>{p.name}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">Mjeku</label>
+            <select
+              required
+              value={form.doctorName}
+              onChange={(e) => update('doctorName', e.target.value)}
+              className="w-full px-3 py-2.5 rounded-xl border border-border bg-secondary text-foreground text-sm outline-none focus:border-accent focus:ring-2 focus:ring-accent/20 transition-all"
+            >
+              {MOCK_DOCTORS.map((d) => <option key={d.id} value={d.name}>{d.name}</option>)}
+            </select>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">Data</label>
+              <input type="date" required value={form.date} onChange={(e) => update('date', e.target.value)} className="w-full px-3 py-2.5 rounded-xl border border-border bg-secondary text-foreground text-sm outline-none focus:border-accent transition-all" />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">Ora</label>
+              <input type="time" required value={form.time} onChange={(e) => update('time', e.target.value)} className="w-full px-3 py-2.5 rounded-xl border border-border bg-secondary text-foreground text-sm outline-none focus:border-accent transition-all" />
+            </div>
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">Lloji</label>
+            <select required value={form.type} onChange={(e) => update('type', e.target.value)} className="w-full px-3 py-2.5 rounded-xl border border-border bg-secondary text-foreground text-sm outline-none focus:border-accent transition-all">
+              {['Kontroll', 'Mbushje', 'Ekstraksion', 'Pastrimi', 'Zbardhim', 'Implant', 'Protezë', 'Ortodonci'].map((t) => <option key={t}>{t}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">Statusi</label>
+            <select value={form.status} onChange={(e) => update('status', e.target.value)} className="w-full px-3 py-2.5 rounded-xl border border-border bg-secondary text-foreground text-sm outline-none focus:border-accent transition-all">
+              <option value="ne-pritje">Në Pritje</option>
+              <option value="ne-trajtim">Në Trajtim</option>
+              <option value="perfunduar">Përfunduar</option>
+              <option value="anuluar">Anuluar</option>
+            </select>
+          </div>
+          <div className="flex gap-2 pt-1">
+            <button type="submit" className="flex-1 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:opacity-90 transition-all">Ruaj Ndryshimet</button>
+            <button type="button" onClick={onClose} className="px-4 py-2.5 rounded-xl border border-border text-foreground text-sm font-medium hover:bg-secondary transition-colors">Anulo</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  )
+}
+
+function AddAppointmentModal({
+  onClose,
+  onSave,
+}: {
+  onClose: () => void
+  onSave: (appt: Appointment) => void
+}) {
+  const [form, setForm] = useState({ patient: '', doctor: '', date: '', time: '', type: '' })
+  const [saving, setSaving] = useState(false)
+  const update = (k: string, v: string) => setForm((f) => ({ ...f, [k]: v }))
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setSaving(true)
+    await new Promise((r) => setTimeout(r, 600))
+    onSave({
+      id: `a${Date.now()}`,
+      patientName: form.patient,
+      doctorName: form.doctor,
+      date: form.date,
+      time: form.time,
+      type: form.type,
+      status: 'ne-pritje',
+    })
+    setSaving(false)
+    onClose()
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="fixed inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative bg-card border border-border rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-border">
+          <h2 className="font-bold text-foreground">Shto Termin të Ri</h2>
+          <button onClick={onClose} className="size-8 flex items-center justify-center rounded-lg hover:bg-secondary transition-colors text-muted-foreground">
+            <X className="size-4" />
+          </button>
+        </div>
+        <form onSubmit={handleSubmit} className="p-5 space-y-4">
+          <div>
+            <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">Pacienti</label>
+            <select required value={form.patient} onChange={(e) => update('patient', e.target.value)} className="w-full px-3 py-2.5 rounded-xl border border-border bg-secondary text-foreground text-sm outline-none focus:border-accent focus:ring-2 focus:ring-accent/20 transition-all">
+              <option value="">Zgjedh pacientin...</option>
+              {MOCK_PATIENTS.map((p) => <option key={p.id} value={p.name}>{p.name}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">Mjeku</label>
+            <select required value={form.doctor} onChange={(e) => update('doctor', e.target.value)} className="w-full px-3 py-2.5 rounded-xl border border-border bg-secondary text-foreground text-sm outline-none focus:border-accent focus:ring-2 focus:ring-accent/20 transition-all">
+              <option value="">Zgjedh mjekun...</option>
+              {MOCK_DOCTORS.map((d) => <option key={d.id} value={d.name}>{d.name}</option>)}
+            </select>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">Data</label>
+              <input type="date" required value={form.date} onChange={(e) => update('date', e.target.value)} className="w-full px-3 py-2.5 rounded-xl border border-border bg-secondary text-foreground text-sm outline-none focus:border-accent transition-all" />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">Ora</label>
+              <input type="time" required value={form.time} onChange={(e) => update('time', e.target.value)} className="w-full px-3 py-2.5 rounded-xl border border-border bg-secondary text-foreground text-sm outline-none focus:border-accent transition-all" />
+            </div>
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">Lloji i Trajtimit</label>
+            <select required value={form.type} onChange={(e) => update('type', e.target.value)} className="w-full px-3 py-2.5 rounded-xl border border-border bg-secondary text-foreground text-sm outline-none focus:border-accent transition-all">
+              <option value="">Zgjedh llojin...</option>
+              {['Kontroll', 'Mbushje', 'Ekstraksion', 'Pastrimi', 'Zbardhim', 'Implant', 'Protezë', 'Ortodonci'].map((t) => <option key={t}>{t}</option>)}
+            </select>
+          </div>
+          <div className="flex gap-2 pt-1">
+            <button type="submit" disabled={saving} className="flex-1 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:opacity-90 transition-all disabled:opacity-60 disabled:cursor-not-allowed">
+              {saving ? 'Duke ruajtur...' : 'Ruaj Terminin'}
+            </button>
+            <button type="button" onClick={onClose} className="px-4 py-2.5 rounded-xl border border-border text-foreground text-sm font-medium hover:bg-secondary transition-colors">Anulo</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  )
+}
 
 export default function ReceptionDashboard() {
   const [appointments, setAppointments] = useState<Appointment[]>(MOCK_APPOINTMENTS)
-  const [showModal, setShowModal] = useState(false)
+  const [payments, setPayments] = useState<Payment[]>(MOCK_PAYMENTS)
+  const [showAddModal, setShowAddModal] = useState(false)
+  const [editingAppt, setEditingAppt] = useState<Appointment | null>(null)
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null)
   const [tab, setTab] = useState<'termine' | 'faturim'>('termine')
+  const [confirmCancel, setConfirmCancel] = useState<string | null>(null)
 
   const todayAppts = appointments.filter((a) => a.date === '2026-04-20')
   const pending = appointments.filter((a) => a.status === 'ne-pritje').length
   const done = appointments.filter((a) => a.status === 'perfunduar').length
-  const unpaid = MOCK_PAYMENTS.filter((p) => p.status === 'papaguar').length
+  const unpaid = payments.filter((p) => p.status === 'papaguar').length
 
   const cancelAppt = (id: string) => {
-    setAppointments(appointments.map((a) => a.id === id ? { ...a, status: 'anuluar' as const } : a))
+    setAppointments((prev) => prev.map((a) => a.id === id ? { ...a, status: 'anuluar' as const } : a))
+    setConfirmCancel(null)
+  }
+
+  const saveEdit = (updated: Appointment) => {
+    setAppointments((prev) => prev.map((a) => a.id === updated.id ? updated : a))
+  }
+
+  const addAppointment = (appt: Appointment) => {
+    setAppointments((prev) => [appt, ...prev])
+  }
+
+  const markPaid = (id: string) => {
+    setPayments((prev) => prev.map((p) => p.id === id ? { ...p, status: 'paguar' as const } : p))
   }
 
   return (
@@ -59,61 +252,81 @@ export default function ReceptionDashboard() {
                 <div className="flex items-center justify-between">
                   <h2 className="font-semibold text-foreground">Menaxhimi i Termineve</h2>
                   <button
-                    onClick={() => setShowModal(true)}
-                    className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition-opacity"
+                    onClick={() => setShowAddModal(true)}
+                    className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition-opacity active:scale-[0.98]"
                   >
                     <Plus className="size-4" />
                     <span>Shto Termin</span>
                   </button>
                 </div>
 
-                <div className="bg-card border border-border rounded-2xl overflow-hidden shadow-sm">
-                  <div className="overflow-x-auto">
-                    <table className="w-full">
-                      <thead>
-                        <tr className="border-b border-border bg-secondary/50">
-                          <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Pacienti</th>
-                          <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide hidden md:table-cell">Mjeku</th>
-                          <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Data · Ora</th>
-                          <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Statusi</th>
-                          <th className="text-right px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Veprime</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-border">
-                        {appointments.map((a) => (
-                          <tr key={a.id} className="hover:bg-secondary/30 transition-colors">
-                            <td className="px-4 py-3">
-                              <button
-                                onClick={() => {
-                                  const p = MOCK_PATIENTS.find((p) => p.name === a.patientName)
-                                  if (p) setSelectedPatient(p)
-                                }}
-                                className="text-sm font-medium text-foreground hover:text-accent transition-colors text-left"
-                              >
-                                {a.patientName}
-                              </button>
-                            </td>
-                            <td className="px-4 py-3 text-sm text-muted-foreground hidden md:table-cell">{a.doctorName}</td>
-                            <td className="px-4 py-3 text-sm text-muted-foreground">{a.date} · {a.time}</td>
-                            <td className="px-4 py-3"><StatusBadge status={a.status} /></td>
-                            <td className="px-4 py-3">
-                              <div className="flex items-center justify-end gap-1">
-                                <button className="p-1.5 rounded-lg text-muted-foreground hover:text-accent hover:bg-accent/10 transition-colors">
-                                  <Edit2 className="size-3.5" />
-                                </button>
-                                {a.status !== 'anuluar' && (
-                                  <button onClick={() => cancelAppt(a.id)} className="p-1.5 rounded-lg text-muted-foreground hover:text-red-500 hover:bg-red-50 transition-colors">
-                                    <X className="size-3.5" />
-                                  </button>
-                                )}
-                              </div>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                {appointments.length === 0 ? (
+                  <div className="bg-card border border-border rounded-2xl p-12 text-center">
+                    <Calendar className="size-10 text-muted-foreground/50 mx-auto mb-3" />
+                    <p className="text-foreground font-medium">Nuk ka termine</p>
+                    <p className="text-muted-foreground text-sm mt-1">Shtoni terminin e parë duke klikuar butonin lart</p>
                   </div>
-                </div>
+                ) : (
+                  <div className="bg-card border border-border rounded-2xl overflow-hidden shadow-sm">
+                    <div className="overflow-x-auto">
+                      <table className="w-full">
+                        <thead>
+                          <tr className="border-b border-border bg-secondary/50">
+                            <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Pacienti</th>
+                            <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide hidden md:table-cell">Mjeku</th>
+                            <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Data · Ora</th>
+                            <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide hidden sm:table-cell">Lloji</th>
+                            <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Statusi</th>
+                            <th className="text-right px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Veprime</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-border">
+                          {appointments.map((a) => (
+                            <tr key={a.id} className="hover:bg-secondary/30 transition-colors">
+                              <td className="px-4 py-3">
+                                <button
+                                  onClick={() => {
+                                    const p = MOCK_PATIENTS.find((p) => p.name === a.patientName)
+                                    if (p) setSelectedPatient(p)
+                                  }}
+                                  className="text-sm font-medium text-foreground hover:text-accent transition-colors text-left"
+                                >
+                                  {a.patientName}
+                                </button>
+                              </td>
+                              <td className="px-4 py-3 text-sm text-muted-foreground hidden md:table-cell">{a.doctorName}</td>
+                              <td className="px-4 py-3 text-sm text-muted-foreground whitespace-nowrap">{a.date} · {a.time}</td>
+                              <td className="px-4 py-3 text-sm text-muted-foreground hidden sm:table-cell">{a.type}</td>
+                              <td className="px-4 py-3"><StatusBadge status={a.status} /></td>
+                              <td className="px-4 py-3">
+                                <div className="flex items-center justify-end gap-1">
+                                  {a.status !== 'anuluar' && (
+                                    <button
+                                      onClick={() => setEditingAppt(a)}
+                                      className="p-1.5 rounded-lg text-muted-foreground hover:text-accent hover:bg-accent/10 transition-colors"
+                                      title="Ndrysho"
+                                    >
+                                      <Edit2 className="size-3.5" />
+                                    </button>
+                                  )}
+                                  {a.status !== 'anuluar' && a.status !== 'perfunduar' && (
+                                    <button
+                                      onClick={() => setConfirmCancel(a.id)}
+                                      className="p-1.5 rounded-lg text-muted-foreground hover:text-red-500 hover:bg-red-50 transition-colors"
+                                      title="Anulo"
+                                    >
+                                      <X className="size-3.5" />
+                                    </button>
+                                  )}
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
               </>
             )}
 
@@ -133,7 +346,7 @@ export default function ReceptionDashboard() {
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-border">
-                        {MOCK_PAYMENTS.map((p) => (
+                        {payments.map((p) => (
                           <tr key={p.id} className="hover:bg-secondary/30 transition-colors">
                             <td className="px-4 py-3 text-sm font-medium text-foreground">{p.patientName}</td>
                             <td className="px-4 py-3 text-sm text-muted-foreground hidden sm:table-cell">{p.service}</td>
@@ -141,9 +354,15 @@ export default function ReceptionDashboard() {
                             <td className="px-4 py-3"><StatusBadge status={p.status} /></td>
                             <td className="px-4 py-3 text-right">
                               {p.status !== 'paguar' && (
-                                <button className="text-xs px-3 py-1.5 rounded-lg bg-green-100 text-green-700 hover:bg-green-200 font-medium transition-colors border border-green-200">
+                                <button
+                                  onClick={() => markPaid(p.id)}
+                                  className="text-xs px-3 py-1.5 rounded-lg bg-green-100 text-green-700 hover:bg-green-200 font-medium transition-colors border border-green-200 active:scale-95"
+                                >
                                   Shëno Paguar
                                 </button>
+                              )}
+                              {p.status === 'paguar' && (
+                                <span className="text-xs text-muted-foreground">Paguar</span>
                               )}
                             </td>
                           </tr>
@@ -159,7 +378,7 @@ export default function ReceptionDashboard() {
           {/* Calendar sidebar */}
           <div>
             <h2 className="font-semibold text-foreground mb-3">Kalendari i Klinikës</h2>
-            <CalendarWidget />
+            <CalendarWidget appointments={appointments} />
 
             {/* Quick patient list */}
             <div className="mt-4">
@@ -187,7 +406,40 @@ export default function ReceptionDashboard() {
         </div>
       </div>
 
-      {showModal && <AppointmentModal onClose={() => setShowModal(false)} />}
+      {/* Cancel confirmation dialog */}
+      {confirmCancel && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setConfirmCancel(null)} />
+          <div className="relative bg-card border border-border rounded-2xl shadow-2xl w-full max-w-sm p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="size-10 rounded-xl bg-red-100 flex items-center justify-center flex-shrink-0">
+                <AlertCircle className="size-5 text-red-600" />
+              </div>
+              <div>
+                <h3 className="font-bold text-foreground">Anulo Terminin?</h3>
+                <p className="text-sm text-muted-foreground mt-0.5">Kjo veprim nuk mund të kthehe mbrapsht.</p>
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={() => cancelAppt(confirmCancel)}
+                className="flex-1 py-2.5 rounded-xl bg-red-500 text-white text-sm font-semibold hover:bg-red-600 transition-colors"
+              >
+                Anulo Terminin
+              </button>
+              <button
+                onClick={() => setConfirmCancel(null)}
+                className="px-4 py-2.5 rounded-xl border border-border text-foreground text-sm font-medium hover:bg-secondary transition-colors"
+              >
+                Mbyll
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showAddModal && <AddAppointmentModal onClose={() => setShowAddModal(false)} onSave={addAppointment} />}
+      {editingAppt && <EditAppointmentModal appointment={editingAppt} onClose={() => setEditingAppt(null)} onSave={saveEdit} />}
       {selectedPatient && <PatientModal patient={selectedPatient} onClose={() => setSelectedPatient(null)} />}
     </div>
   )

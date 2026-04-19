@@ -2,18 +2,28 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { Eye, EyeOff, Stethoscope, ArrowRight, CheckCircle } from 'lucide-react'
+import { Eye, EyeOff, Stethoscope, ArrowRight, CheckCircle, AlertCircle } from 'lucide-react'
 
 export default function RegisterPage() {
   const [form, setForm] = useState({ name: '', email: '', password: '', confirm: '', role: 'recepsion' })
   const [showPass, setShowPass] = useState(false)
   const [loading, setLoading] = useState(false)
   const [done, setDone] = useState(false)
+  const [error, setError] = useState('')
 
   const update = (k: string, v: string) => setForm((f) => ({ ...f, [k]: v }))
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    setError('')
+    if (form.password.length < 8) {
+      setError('Fjalëkalimi duhet të ketë të paktën 8 karaktere.')
+      return
+    }
+    if (form.password !== form.confirm) {
+      setError('Fjalëkalimet nuk përputhen.')
+      return
+    }
     setLoading(true)
     await new Promise((r) => setTimeout(r, 1000))
     setLoading(false)
@@ -106,6 +116,13 @@ export default function RegisterPage() {
               className="w-full px-4 py-3 rounded-xl border border-border bg-secondary text-foreground placeholder:text-muted-foreground text-sm outline-none focus:border-accent focus:ring-2 focus:ring-accent/20 transition-all"
             />
           </div>
+
+          {error && (
+            <div className="flex items-center gap-2 p-3 rounded-xl bg-red-50 border border-red-200 text-red-700">
+              <AlertCircle className="size-4 flex-shrink-0" />
+              <p className="text-sm">{error}</p>
+            </div>
+          )}
 
           <button
             type="submit" disabled={loading}

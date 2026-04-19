@@ -1,15 +1,22 @@
 'use client'
 
+import { useState } from 'react'
 import { CreditCard, TrendingUp, TrendingDown, DollarSign } from 'lucide-react'
 import { Topbar } from '@/components/topbar'
 import { StatCard } from '@/components/stat-card'
 import { StatusBadge } from '@/components/status-badge'
-import { MOCK_PAYMENTS } from '@/lib/mock-data'
+import { MOCK_PAYMENTS, Payment } from '@/lib/mock-data'
 
 export default function FinancePage() {
-  const total = MOCK_PAYMENTS.reduce((s, p) => s + p.amount, 0)
-  const paid = MOCK_PAYMENTS.filter((p) => p.status === 'paguar').reduce((s, p) => s + p.amount, 0)
-  const unpaid = MOCK_PAYMENTS.filter((p) => p.status === 'papaguar').reduce((s, p) => s + p.amount, 0)
+  const [payments, setPayments] = useState<Payment[]>(MOCK_PAYMENTS)
+
+  const markPaid = (id: string) => {
+    setPayments((prev) => prev.map((p) => p.id === id ? { ...p, status: 'paguar' as const } : p))
+  }
+
+  const total = payments.reduce((s, p) => s + p.amount, 0)
+  const paid = payments.filter((p) => p.status === 'paguar').reduce((s, p) => s + p.amount, 0)
+  const unpaid = payments.filter((p) => p.status === 'papaguar').reduce((s, p) => s + p.amount, 0)
 
   return (
     <div className="flex-1 flex flex-col">
@@ -18,11 +25,11 @@ export default function FinancePage() {
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <StatCard label="Faturat Totale" value={`${(total / 1000).toFixed(0)}K L`} icon={DollarSign} iconBg="bg-blue-50" iconColor="text-blue-600" />
           <StatCard label="Bilanci i Arkës" value={`${(paid / 1000).toFixed(0)}K L`} trend={{ value: '+15% kundrejt muajit', positive: true }} icon={TrendingUp} iconBg="bg-green-50" iconColor="text-green-600" />
-          <StatCard label="Fatura Papaguara" value={`${(unpaid / 1000).toFixed(0)}K L`} trend={{ value: '3 fatura aktive', positive: false }} icon={TrendingDown} iconBg="bg-red-50" iconColor="text-red-500" />
+          <StatCard label="Fatura Papaguara" value={`${(unpaid / 1000).toFixed(0)}K L`} trend={{ value: `${payments.filter((p) => p.status === 'papaguar').length} fatura aktive`, positive: false }} icon={TrendingDown} iconBg="bg-red-50" iconColor="text-red-500" />
         </div>
 
         <div>
-          <h2 className="font-semibold text-foreground mb-3">Të gjitha Pagesat</h2>
+          <h2 className="font-semibold text-foreground mb-3">Të Gjitha Pagesat</h2>
           <div className="bg-card border border-border rounded-2xl overflow-hidden shadow-sm">
             <div className="overflow-x-auto">
               <table className="w-full">
@@ -37,7 +44,7 @@ export default function FinancePage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
-                  {MOCK_PAYMENTS.map((p) => (
+                  {payments.map((p) => (
                     <tr key={p.id} className="hover:bg-secondary/30 transition-colors">
                       <td className="px-4 py-3 text-sm font-medium text-foreground">{p.patientName}</td>
                       <td className="px-4 py-3 text-sm text-muted-foreground hidden sm:table-cell">{p.service}</td>
@@ -45,9 +52,16 @@ export default function FinancePage() {
                       <td className="px-4 py-3 text-sm text-muted-foreground hidden md:table-cell">{p.date}</td>
                       <td className="px-4 py-3"><StatusBadge status={p.status} /></td>
                       <td className="px-4 py-3 text-right">
-                        <button className="text-xs px-3 py-1.5 rounded-lg border border-border text-muted-foreground hover:bg-secondary transition-colors">
-                          Shiko Faturën
-                        </button>
+                        {p.status !== 'paguar' ? (
+                          <button
+                            onClick={() => markPaid(p.id)}
+                            className="text-xs px-3 py-1.5 rounded-lg bg-green-100 text-green-700 hover:bg-green-200 font-medium transition-colors border border-green-200 active:scale-95"
+                          >
+                            Shëno Paguar
+                          </button>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">Paguar</span>
+                        )}
                       </td>
                     </tr>
                   ))}
