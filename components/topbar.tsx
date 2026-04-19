@@ -2,9 +2,11 @@
 
 import { useState, useRef, useEffect } from 'react'
 import { Bell, Search, X, ChevronDown, CheckCheck } from 'lucide-react'
+import useSWR from 'swr'
 import { useAuth } from '@/lib/auth-context'
 import { cn } from '@/lib/utils'
-import { MOCK_PATIENTS, MOCK_APPOINTMENTS } from '@/lib/mock-data'
+import { fetcher } from '@/lib/api-client'
+import { Patient, Appointment } from '@/lib/mock-data'
 
 const INITIAL_NOTIFICATIONS = [
   { id: 1, text: 'Arta Berisha ka një termin sot në 09:00', time: '5 min më parë', read: false },
@@ -27,6 +29,9 @@ export function Topbar({ title }: { title: string }) {
   const [searchFocused, setSearchFocused] = useState(false)
   const searchRef = useRef<HTMLDivElement>(null)
 
+  const { data: patients = [] } = useSWR<Patient[]>('/api/patients', fetcher)
+  const { data: appointments = [] } = useSWR<Appointment[]>('/api/appointments', fetcher)
+
   const unread = notifications.filter((n) => !n.read).length
 
   const markAllRead = () => {
@@ -40,14 +45,14 @@ export function Topbar({ title }: { title: string }) {
   // Search results — combines patients + appointments
   const searchResults: SearchResult[] = searchQ.trim().length >= 1
     ? [
-        ...MOCK_PATIENTS
-          .filter((p) => p.name.toLowerCase().includes(searchQ.toLowerCase()))
+        ...patients
+          .filter((p: Patient) => p.name.toLowerCase().includes(searchQ.toLowerCase()))
           .slice(0, 3)
-          .map((p) => ({ type: 'patient' as const, label: p.name, sub: `${p.age} vjeç · ${p.doctor}` })),
-        ...MOCK_APPOINTMENTS
-          .filter((a) => a.patientName.toLowerCase().includes(searchQ.toLowerCase()))
+          .map((p: Patient) => ({ type: 'patient' as const, label: p.name, sub: `${p.age} vjeç · ${p.doctor}` })),
+        ...appointments
+          .filter((a: Appointment) => a.patientName.toLowerCase().includes(searchQ.toLowerCase()))
           .slice(0, 2)
-          .map((a) => ({ type: 'appointment' as const, label: a.patientName, sub: `${a.date} ${a.time} — ${a.type}` })),
+          .map((a: Appointment) => ({ type: 'appointment' as const, label: a.patientName, sub: `${a.date} ${a.time} — ${a.type}` })),
       ]
     : []
 
