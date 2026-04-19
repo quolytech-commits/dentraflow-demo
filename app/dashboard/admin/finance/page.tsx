@@ -1,22 +1,24 @@
 'use client'
 
-import { useState } from 'react'
-import { CreditCard, TrendingUp, TrendingDown, DollarSign } from 'lucide-react'
+import useSWR from 'swr'
+import { TrendingUp, TrendingDown, DollarSign } from 'lucide-react'
 import { Topbar } from '@/components/topbar'
 import { StatCard } from '@/components/stat-card'
 import { StatusBadge } from '@/components/status-badge'
-import { MOCK_PAYMENTS, Payment } from '@/lib/mock-data'
+import { fetcher, api } from '@/lib/api-client'
+import { Payment } from '@/lib/mock-data'
 
 export default function FinancePage() {
-  const [payments, setPayments] = useState<Payment[]>(MOCK_PAYMENTS)
+  const { data: payments = [], mutate } = useSWR<Payment[]>('/api/payments', fetcher, { refreshInterval: 15000 })
 
-  const markPaid = (id: string) => {
-    setPayments((prev) => prev.map((p) => p.id === id ? { ...p, status: 'paguar' as const } : p))
+  const markPaid = async (id: string) => {
+    await api.put(`/api/payments/${id}`, { status: 'paguar' })
+    mutate()
   }
 
-  const total = payments.reduce((s, p) => s + p.amount, 0)
-  const paid = payments.filter((p) => p.status === 'paguar').reduce((s, p) => s + p.amount, 0)
-  const unpaid = payments.filter((p) => p.status === 'papaguar').reduce((s, p) => s + p.amount, 0)
+  const total = payments.reduce((s: number, p: Payment) => s + p.amount, 0)
+  const paid = payments.filter((p: Payment) => p.status === 'paguar').reduce((s: number, p: Payment) => s + p.amount, 0)
+  const unpaid = payments.filter((p: Payment) => p.status === 'papaguar').reduce((s: number, p: Payment) => s + p.amount, 0)
 
   return (
     <div className="flex-1 flex flex-col">
@@ -25,7 +27,7 @@ export default function FinancePage() {
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <StatCard label="Faturat Totale" value={`${(total / 1000).toFixed(0)}K L`} icon={DollarSign} iconBg="bg-blue-50" iconColor="text-blue-600" />
           <StatCard label="Bilanci i Arkës" value={`${(paid / 1000).toFixed(0)}K L`} trend={{ value: '+15% kundrejt muajit', positive: true }} icon={TrendingUp} iconBg="bg-green-50" iconColor="text-green-600" />
-          <StatCard label="Fatura Papaguara" value={`${(unpaid / 1000).toFixed(0)}K L`} trend={{ value: `${payments.filter((p) => p.status === 'papaguar').length} fatura aktive`, positive: false }} icon={TrendingDown} iconBg="bg-red-50" iconColor="text-red-500" />
+          <StatCard label="Fatura Papaguara" value={`${(unpaid / 1000).toFixed(0)}K L`} trend={{ value: `${payments.filter((p: Payment) => p.status === 'papaguar').length} fatura aktive`, positive: false }} icon={TrendingDown} iconBg="bg-red-50" iconColor="text-red-500" />
         </div>
 
         <div>
@@ -44,7 +46,7 @@ export default function FinancePage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
-                  {payments.map((p) => (
+                  {payments.map((p: Payment) => (
                     <tr key={p.id} className="hover:bg-secondary/30 transition-colors">
                       <td className="px-4 py-3 text-sm font-medium text-foreground">{p.patientName}</td>
                       <td className="px-4 py-3 text-sm text-muted-foreground hidden sm:table-cell">{p.service}</td>
@@ -53,10 +55,7 @@ export default function FinancePage() {
                       <td className="px-4 py-3"><StatusBadge status={p.status} /></td>
                       <td className="px-4 py-3 text-right">
                         {p.status !== 'paguar' ? (
-                          <button
-                            onClick={() => markPaid(p.id)}
-                            className="text-xs px-3 py-1.5 rounded-lg bg-green-100 text-green-700 hover:bg-green-200 font-medium transition-colors border border-green-200 active:scale-95"
-                          >
+                          <button onClick={() => markPaid(p.id)} className="text-xs px-3 py-1.5 rounded-lg bg-green-100 text-green-700 hover:bg-green-200 font-medium transition-colors border border-green-200 active:scale-95">
                             Shëno Paguar
                           </button>
                         ) : (

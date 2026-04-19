@@ -1,28 +1,56 @@
 'use client'
 
 import { useState } from 'react'
+import useSWR from 'swr'
 import { X, User, Phone, Mail, Calendar, FileText, ChevronRight } from 'lucide-react'
-import { Patient, MOCK_DOCTORS } from '@/lib/mock-data'
+import { Patient, Doctor } from '@/lib/mock-data'
 import { StatusBadge } from './status-badge'
+import { fetcher, api } from '@/lib/api-client'
 
 interface PatientModalProps {
   patient: Patient | null
   onClose: () => void
+  onMutate?: () => void
 }
 
-function AddAppointmentInline({ patientName, onCancel, onDone }: { patientName: string; onCancel: () => void; onDone: () => void }) {
-  const [form, setForm] = useState({ doctor: '', date: '', time: '', type: '' })
+const TREATMENT_TYPES = ['Kontroll', 'Mbushje', 'Ekstraksion', 'Pastrimi', 'Zbardhim', 'Implant', 'Protezë']
+
+function AddAppointmentInline({
+  patient,
+  onCancel,
+  onDone,
+}: {
+  patient: Patient
+  onCancel: () => void
+  onDone: () => void
+}) {
+  const { data: doctors = [] } = useSWR<Doctor[]>('/api/users?role=mjek', fetcher)
+  const [form, setForm] = useState({ doctorId: '', date: '', time: '', type: '' })
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
+  const [error, setError] = useState('')
   const update = (k: string, v: string) => setForm((f) => ({ ...f, [k]: v }))
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (!patient.id) return
     setSaving(true)
-    await new Promise((r) => setTimeout(r, 700))
-    setSaving(false)
-    setSaved(true)
-    setTimeout(onDone, 1000)
+    setError('')
+    try {
+      await api.post('/api/appointments', {
+        patientId: patient.id,
+        doctorId: form.doctorId,
+        date: form.date,
+        time: form.time,
+        type: form.type,
+      })
+      setSaved(true)
+      setTimeout(onDone, 1000)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Gabim gjatë ruajtjes.')
+    } finally {
+      setSaving(false)
+    }
   }
 
   if (saved) {
@@ -32,27 +60,28 @@ function AddAppointmentInline({ patientName, onCancel, onDone }: { patientName: 
           <Calendar className="size-5 text-green-600" />
         </div>
         <p className="text-sm font-semibold text-foreground">Termini u shtua!</p>
-        <p className="text-xs text-muted-foreground">Termini për {patientName} u regjistrua me sukses.</p>
+        <p className="text-xs text-muted-foreground">Termini për {patient.name} u regjistrua me sukses.</p>
       </div>
     )
   }
 
   return (
     <form onSubmit={handleSubmit} className="p-4 space-y-3 border-t border-border bg-secondary/30">
-      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Shto Termin për {patientName}</p>
+      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Shto Termin për {patient.name}</p>
+      {error && <p className="text-xs text-red-600 bg-red-50 px-3 py-2 rounded-lg">{error}</p>}
       <div className="grid grid-cols-2 gap-2">
         <div>
           <label className="block text-xs text-muted-foreground mb-1">Mjeku</label>
-          <select required value={form.doctor} onChange={(e) => update('doctor', e.target.value)} className="w-full px-2.5 py-2 rounded-lg border border-border bg-card text-foreground text-xs outline-none focus:border-accent transition-all">
+          <select required value={form.doctorId} onChange={(e) => update('doctorId', e.target.value)} className="w-full px-2.5 py-2 rounded-lg border border-border bg-card text-foreground text-xs outline-none focus:border-accent transition-all">
             <option value="">Zgjedh mjekun...</option>
-            {MOCK_DOCTORS.map((d) => <option key={d.id} value={d.name}>{d.name}</option>)}
+            {doctors.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
           </select>
         </div>
         <div>
           <label className="block text-xs text-muted-foreground mb-1">Lloji</label>
           <select required value={form.type} onChange={(e) => update('type', e.target.value)} className="w-full px-2.5 py-2 rounded-lg border border-border bg-card text-foreground text-xs outline-none focus:border-accent transition-all">
             <option value="">Zgjedh llojin...</option>
-            {['Kontroll', 'Mbushje', 'Ekstraksion', 'Pastrimi', 'Zbardhim', 'Implant', 'Protezë'].map((t) => <option key={t}>{t}</option>)}
+            {TREATMENT_TYPES.map((t) => <option key={t}>{t}</option>)}
           </select>
         </div>
         <div>
@@ -74,7 +103,7 @@ function AddAppointmentInline({ patientName, onCancel, onDone }: { patientName: 
   )
 }
 
-export function PatientModal({ patient, onClose }: PatientModalProps) {
+export function PatientModal({ patient, onClose, onMutate }: PatientModalProps) {
   const [tab, setTab] = useState<'info' | 'history' | 'notes' | 'treatments'>('info')
   const [showAddAppt, setShowAddAppt] = useState(false)
 
@@ -169,9 +198,9 @@ export function PatientModal({ patient, onClose }: PatientModalProps) {
         {/* Inline add appointment form */}
         {showAddAppt && (
           <AddAppointmentInline
-            patientName={patient.name}
+            patient={patient}
             onCancel={() => setShowAddAppt(false)}
-            onDone={() => { setShowAddAppt(false) }}
+            onDone={() => { setShowAddAppt(false); onMutate?.() }}
           />
         )}
 

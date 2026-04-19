@@ -1,41 +1,94 @@
 'use client'
 
 import { useState } from 'react'
+import useSWR from 'swr'
 import { Users, TrendingUp, Calendar, CreditCard, UserPlus, Trash2, Star, Activity } from 'lucide-react'
 import { Topbar } from '@/components/topbar'
 import { StatCard } from '@/components/stat-card'
 import { StatusBadge } from '@/components/status-badge'
 import { CalendarWidget } from '@/components/calendar-widget'
-import { MOCK_APPOINTMENTS, MOCK_DOCTORS, MOCK_PAYMENTS, MOCK_PATIENTS } from '@/lib/mock-data'
+import { fetcher, api } from '@/lib/api-client'
+
+interface Doctor {
+  id: string
+  name: string
+  email: string
+  role: string
+  avatar: string
+  specialty?: string
+  patientCount?: number
+}
+
+interface Appointment {
+  id: string
+  patientName: string
+  doctorName: string
+  date: string
+  time: string
+  type: string
+  status: string
+}
+
+interface Payment {
+  id: string
+  patientName: string
+  amount: number
+  date: string
+  status: string
+  service: string
+}
+
+interface Stats {
+  totalPatients: number
+  patientsInTreatment: number
+  todayAppointments: number
+  pendingAppointments: number
+  totalDoctors: number
+  totalRevenue: number
+  totalBilled: number
+  unpaidCount: number
+}
 
 export default function AdminDashboard() {
-  const [doctors, setDoctors] = useState(MOCK_DOCTORS)
   const [showAddDoctor, setShowAddDoctor] = useState(false)
   const [newDoctorName, setNewDoctorName] = useState('')
-  const [payments, setPayments] = useState(MOCK_PAYMENTS)
+  const [newDoctorEmail, setNewDoctorEmail] = useState('')
+  const [newDoctorSpecialty, setNewDoctorSpecialty] = useState('')
 
-  const markPaid = (id: string) => {
-    setPayments((prev) => prev.map((p) => p.id === id ? { ...p, status: 'paguar' as const } : p))
+  const { data: doctors = [], mutate: mutateDoctors } = useSWR<Doctor[]>('/api/users?role=mjek', fetcher, { refreshInterval: 30000 })
+  const { data: appointments = [] } = useSWR<Appointment[]>('/api/appointments', fetcher, { refreshInterval: 15000 })
+  const { data: payments = [], mutate: mutatePayments } = useSWR<Payment[]>('/api/payments', fetcher, { refreshInterval: 15000 })
+  const { data: stats } = useSWR<Stats>('/api/stats', fetcher, { refreshInterval: 15000 })
+
+  const markPaid = async (id: string) => {
+    await api.put(`/api/payments/${id}`, { status: 'paguar' })
+    mutatePayments()
   }
 
-  const totalRevenue = payments.filter((p) => p.status === 'paguar').reduce((s, p) => s + p.amount, 0)
-  const pending = MOCK_APPOINTMENTS.filter((a) => a.status === 'ne-pritje').length
-  const inTreatment = MOCK_PATIENTS.filter((p) => p.status === 'ne-trajtim').length
+  const deleteDoctor = async (id: string) => {
+    await api.del(`/api/users/${id}`)
+    mutateDoctors()
+  }
 
-  const handleAddDoctor = (e: React.FormEvent) => {
+  const handleAddDoctor = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!newDoctorName.trim()) return
-    setDoctors([...doctors, {
-      id: `d${Date.now()}`,
+    if (!newDoctorName.trim() || !newDoctorEmail.trim()) return
+    await api.post('/api/users', {
       name: `Dr. ${newDoctorName}`,
-      email: `${newDoctorName.toLowerCase().replace(/\s/g, '.')}@dentraflow.com`,
+      email: newDoctorEmail,
+      password: 'mjek2023',
       role: 'mjek',
-      avatar: newDoctorName.slice(0, 2).toUpperCase(),
-      specialty: 'Stomatologji e Përgjithshme',
-    }])
+      specialty: newDoctorSpecialty || 'Stomatologji e Përgjithshme',
+    })
     setNewDoctorName('')
+    setNewDoctorEmail('')
+    setNewDoctorSpecialty('')
     setShowAddDoctor(false)
+    mutateDoctors()
   }
+
+  const totalRevenue = stats?.totalRevenue ?? 0
+  const totalBilled = stats?.totalBilled ?? 0
 
   return (
     <div className="flex-1 flex flex-col">
@@ -44,10 +97,10 @@ export default function AdminDashboard() {
       <div className="flex-1 p-4 lg:p-6 space-y-6 overflow-y-auto">
         {/* Stats */}
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-          <StatCard label="Numri i Pacientëve" value={String(MOCK_PATIENTS.length)} subtext="Pacientë aktivë" trend={{ value: '+12% këtë muaj', positive: true }} icon={Users} iconBg="bg-blue-50" iconColor="text-blue-600" />
+          <StatCard label="Numri i Pacientëve" value={String(stats?.totalPatients ?? '—')} subtext="Pacientë aktivë" trend={{ value: '+12% këtë muaj', positive: true }} icon={Users} iconBg="bg-blue-50" iconColor="text-blue-600" />
           <StatCard label="Të Ardhurat" value={`${(totalRevenue / 1000).toFixed(0)}K L`} subtext="Pagesa të mbledhura" trend={{ value: '+8% kundrejt muajit', positive: true }} icon={CreditCard} iconBg="bg-green-50" iconColor="text-green-600" />
-          <StatCard label="Termine Sot" value={String(pending + inTreatment)} subtext={`${inTreatment} në trajtim`} icon={Calendar} iconBg="bg-amber-50" iconColor="text-amber-600" />
-          <StatCard label="Mjekë Aktivë" value={String(doctors.length)} subtext="Gjithsej specialistë" icon={Activity} iconBg="bg-purple-50" iconColor="text-purple-600" />
+          <StatCard label="Termine Sot" value={String(stats?.todayAppointments ?? '—')} subtext={`${stats?.patientsInTreatment ?? 0} në trajtim`} icon={Calendar} iconBg="bg-amber-50" iconColor="text-amber-600" />
+          <StatCard label="Mjekë Aktivë" value={String(stats?.totalDoctors ?? '—')} subtext="Gjithsej specialistë" icon={Activity} iconBg="bg-purple-50" iconColor="text-purple-600" />
         </div>
 
         <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
@@ -56,7 +109,7 @@ export default function AdminDashboard() {
             <div className="flex items-center justify-between mb-3">
               <h2 className="font-semibold text-foreground">Kalendari Global</h2>
             </div>
-            <CalendarWidget />
+            <CalendarWidget appointments={appointments} />
           </div>
 
           {/* Doctor Performance */}
@@ -65,34 +118,33 @@ export default function AdminDashboard() {
               <h2 className="font-semibold text-foreground">Performanca e Mjekëve</h2>
             </div>
             <div className="bg-card border border-border rounded-2xl overflow-hidden shadow-sm">
-              {doctors.map((doc, i) => {
-                const docAppts = MOCK_APPOINTMENTS.filter((a) => a.doctorName === doc.name)
-                const docPatients = MOCK_PATIENTS.filter((p) => p.doctor === doc.name)
-                return (
-                  <div key={doc.id} className={`flex items-center gap-3 p-4 ${i !== 0 ? 'border-t border-border' : ''} hover:bg-secondary/30 transition-colors`}>
-                    <div className="size-9 rounded-full bg-primary/10 flex items-center justify-center text-primary text-sm font-bold flex-shrink-0">
-                      {doc.avatar}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold text-foreground truncate">{doc.name}</p>
-                      <p className="text-xs text-muted-foreground">{doc.specialty}</p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-sm font-bold text-foreground">{docPatients.length}</p>
-                      <p className="text-xs text-muted-foreground">pacientë</p>
-                    </div>
-                    <div className="flex items-center gap-1 text-amber-500">
-                      <Star className="size-3.5 fill-current" />
-                      <span className="text-xs font-semibold">{(4.5 + i * 0.1).toFixed(1)}</span>
-                    </div>
+              {doctors.map((doc, i) => (
+                <div key={doc.id} className={`flex items-center gap-3 p-4 ${i !== 0 ? 'border-t border-border' : ''} hover:bg-secondary/30 transition-colors`}>
+                  <div className="size-9 rounded-full bg-primary/10 flex items-center justify-center text-primary text-sm font-bold flex-shrink-0">
+                    {doc.avatar}
                   </div>
-                )
-              })}
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-foreground truncate">{doc.name}</p>
+                    <p className="text-xs text-muted-foreground">{doc.specialty}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-sm font-bold text-foreground">{doc.patientCount ?? 0}</p>
+                    <p className="text-xs text-muted-foreground">pacientë</p>
+                  </div>
+                  <div className="flex items-center gap-1 text-amber-500">
+                    <Star className="size-3.5 fill-current" />
+                    <span className="text-xs font-semibold">{(4.5 + i * 0.1).toFixed(1)}</span>
+                  </div>
+                </div>
+              ))}
+              {doctors.length === 0 && (
+                <div className="p-8 text-center text-sm text-muted-foreground">Nuk ka mjekë ende.</div>
+              )}
             </div>
           </div>
         </div>
 
-        {/* User Management */}
+        {/* Doctor Management */}
         <div>
           <div className="flex items-center justify-between mb-3">
             <h2 className="font-semibold text-foreground">Menaxhimi i Mjekëve</h2>
@@ -106,13 +158,28 @@ export default function AdminDashboard() {
           </div>
 
           {showAddDoctor && (
-            <form onSubmit={handleAddDoctor} className="bg-card border border-border rounded-2xl p-4 mb-4 flex items-center gap-3">
+            <form onSubmit={handleAddDoctor} className="bg-card border border-border rounded-2xl p-4 mb-4 flex flex-wrap items-center gap-3">
               <input
                 autoFocus
                 value={newDoctorName}
                 onChange={(e) => setNewDoctorName(e.target.value)}
-                placeholder="Emri i mjekut të ri..."
-                className="flex-1 px-3 py-2 rounded-xl border border-border bg-secondary text-foreground text-sm outline-none focus:border-accent focus:ring-2 focus:ring-accent/20 transition-all"
+                placeholder="Emri i mjekut (pa Dr.)..."
+                required
+                className="flex-1 min-w-[160px] px-3 py-2 rounded-xl border border-border bg-secondary text-foreground text-sm outline-none focus:border-accent focus:ring-2 focus:ring-accent/20 transition-all"
+              />
+              <input
+                value={newDoctorEmail}
+                onChange={(e) => setNewDoctorEmail(e.target.value)}
+                placeholder="Email..."
+                required
+                type="email"
+                className="flex-1 min-w-[160px] px-3 py-2 rounded-xl border border-border bg-secondary text-foreground text-sm outline-none focus:border-accent focus:ring-2 focus:ring-accent/20 transition-all"
+              />
+              <input
+                value={newDoctorSpecialty}
+                onChange={(e) => setNewDoctorSpecialty(e.target.value)}
+                placeholder="Specializimi..."
+                className="flex-1 min-w-[140px] px-3 py-2 rounded-xl border border-border bg-secondary text-foreground text-sm outline-none focus:border-accent focus:ring-2 focus:ring-accent/20 transition-all"
               />
               <button type="submit" className="px-4 py-2 rounded-xl bg-primary text-primary-foreground text-sm font-medium hover:opacity-90">Shto</button>
               <button type="button" onClick={() => setShowAddDoctor(false)} className="px-4 py-2 rounded-xl border border-border text-foreground text-sm hover:bg-secondary transition-colors">Anulo</button>
@@ -145,7 +212,7 @@ export default function AdminDashboard() {
                       </td>
                       <td className="px-4 py-3 text-right">
                         <button
-                          onClick={() => setDoctors(doctors.filter((d) => d.id !== doc.id))}
+                          onClick={() => deleteDoctor(doc.id)}
                           className="text-muted-foreground hover:text-red-500 transition-colors p-1.5 rounded-lg hover:bg-red-50"
                         >
                           <Trash2 className="size-4" />
@@ -175,7 +242,7 @@ export default function AdminDashboard() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
-                  {MOCK_APPOINTMENTS.map((a) => (
+                  {appointments.map((a) => (
                     <tr key={a.id} className="hover:bg-secondary/30 transition-colors">
                       <td className="px-4 py-3 text-sm font-medium text-foreground">{a.patientName}</td>
                       <td className="px-4 py-3 text-sm text-muted-foreground hidden md:table-cell">{a.doctorName}</td>
@@ -194,9 +261,9 @@ export default function AdminDashboard() {
         <div>
           <h2 className="font-semibold text-foreground mb-3">Paneli Financiar</h2>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
-          <StatCard label="Pagesat Totale" value={`${(payments.reduce((s, p) => s + p.amount, 0) / 1000).toFixed(0)}K L`} icon={CreditCard} iconBg="bg-blue-50" iconColor="text-blue-600" />
-          <StatCard label="Bilanci i Arkës" value={`${(totalRevenue / 1000).toFixed(0)}K L`} subtext="Pagesa të mbledhura" icon={TrendingUp} iconBg="bg-green-50" iconColor="text-green-600" />
-          <StatCard label="Fatura Papaguara" value={String(payments.filter((p) => p.status === 'papaguar').length)} subtext="Kërkojnë ndjekje" icon={Users} iconBg="bg-red-50" iconColor="text-red-500" />
+            <StatCard label="Pagesat Totale" value={`${(totalBilled / 1000).toFixed(0)}K L`} icon={CreditCard} iconBg="bg-blue-50" iconColor="text-blue-600" />
+            <StatCard label="Bilanci i Arkës" value={`${(totalRevenue / 1000).toFixed(0)}K L`} subtext="Pagesa të mbledhura" icon={TrendingUp} iconBg="bg-green-50" iconColor="text-green-600" />
+            <StatCard label="Fatura Papaguara" value={String(stats?.unpaidCount ?? 0)} subtext="Kërkojnë ndjekje" icon={Users} iconBg="bg-red-50" iconColor="text-red-500" />
           </div>
           <div className="bg-card border border-border rounded-2xl overflow-hidden shadow-sm">
             <div className="overflow-x-auto">

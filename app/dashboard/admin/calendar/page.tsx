@@ -1,24 +1,28 @@
 'use client'
 
 import { useState } from 'react'
+import useSWR from 'swr'
 import { Topbar } from '@/components/topbar'
 import { CalendarWidget } from '@/components/calendar-widget'
 import { StatusBadge } from '@/components/status-badge'
-import { MOCK_APPOINTMENTS, MOCK_DOCTORS } from '@/lib/mock-data'
+import { fetcher } from '@/lib/api-client'
+import { Appointment, Doctor } from '@/lib/mock-data'
 import { Clock } from 'lucide-react'
 
 export default function AdminCalendarPage() {
   const [doctorFilter, setDoctorFilter] = useState<string>('all')
 
+  const { data: appointments = [] } = useSWR<Appointment[]>('/api/appointments', fetcher, { refreshInterval: 15000 })
+  const { data: doctors = [] } = useSWR<Doctor[]>('/api/users?role=mjek', fetcher)
+
   const filtered = doctorFilter === 'all'
-    ? MOCK_APPOINTMENTS
-    : MOCK_APPOINTMENTS.filter((a) => a.doctorName === doctorFilter)
+    ? appointments
+    : appointments.filter((a: Appointment) => a.doctorName === doctorFilter)
 
   return (
     <div className="flex-1 flex flex-col">
       <Topbar title="Kalendari Global" />
       <div className="flex-1 p-4 lg:p-6 space-y-4 overflow-y-auto">
-        {/* Doctor filter */}
         <div className="flex items-center gap-2 flex-wrap">
           <span className="text-sm font-medium text-muted-foreground">Filtro:</span>
           <button
@@ -27,7 +31,7 @@ export default function AdminCalendarPage() {
           >
             Të gjithë mjekët
           </button>
-          {MOCK_DOCTORS.map((d) => (
+          {doctors.map((d: Doctor) => (
             <button
               key={d.id}
               onClick={() => setDoctorFilter(d.name)}
@@ -53,7 +57,7 @@ export default function AdminCalendarPage() {
                   <Clock className="size-8 text-muted-foreground/50 mx-auto mb-2" />
                   <p className="text-sm text-muted-foreground">Nuk ka termine</p>
                 </div>
-              ) : filtered.map((a) => (
+              ) : filtered.map((a: Appointment) => (
                 <div key={a.id} className="bg-card border border-border rounded-2xl flex items-center gap-3 px-4 py-3 hover:bg-secondary/20 transition-colors">
                   <div className="flex flex-col items-center text-accent flex-shrink-0 min-w-[48px]">
                     <span className="text-xs font-mono font-semibold">{a.time}</span>

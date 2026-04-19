@@ -1,21 +1,23 @@
 'use client'
 
 import { useState } from 'react'
+import useSWR from 'swr'
 import { Search, Users } from 'lucide-react'
 import { Topbar } from '@/components/topbar'
 import { StatusBadge } from '@/components/status-badge'
 import { PatientModal } from '@/components/patient-modal'
-import { MOCK_PATIENTS, Patient } from '@/lib/mock-data'
+import { fetcher } from '@/lib/api-client'
+import { Patient } from '@/lib/mock-data'
 
 export default function AdminPatientsPage() {
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<string>('all')
   const [selected, setSelected] = useState<Patient | null>(null)
 
-  const filtered = MOCK_PATIENTS.filter((p) =>
-    (p.name.toLowerCase().includes(search.toLowerCase()) ||
-      p.doctor.toLowerCase().includes(search.toLowerCase())) &&
-    (statusFilter === 'all' || p.status === statusFilter)
+  const { data: patients = [], mutate } = useSWR<Patient[]>(
+    `/api/patients?search=${encodeURIComponent(search)}&status=${statusFilter}`,
+    fetcher,
+    { refreshInterval: 15000 }
   )
 
   return (
@@ -42,10 +44,10 @@ export default function AdminPatientsPage() {
             <option value="ne-trajtim">Në Trajtim</option>
             <option value="perfunduar">Përfunduar</option>
           </select>
-          <span className="text-sm text-muted-foreground">{filtered.length} pacientë</span>
+          <span className="text-sm text-muted-foreground">{patients.length} pacientë</span>
         </div>
 
-        {filtered.length === 0 ? (
+        {patients.length === 0 ? (
           <div className="bg-card border border-border rounded-2xl p-12 text-center">
             <Users className="size-10 text-muted-foreground/50 mx-auto mb-3" />
             <p className="text-foreground font-medium">Nuk u gjetën pacientë</p>
@@ -65,12 +67,8 @@ export default function AdminPatientsPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
-                  {filtered.map((p) => (
-                    <tr
-                      key={p.id}
-                      onClick={() => setSelected(p)}
-                      className="hover:bg-secondary/30 transition-colors cursor-pointer"
-                    >
+                  {patients.map((p: Patient) => (
+                    <tr key={p.id} onClick={() => setSelected(p)} className="hover:bg-secondary/30 transition-colors cursor-pointer">
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-3">
                           <div className="size-8 rounded-full bg-primary/10 flex items-center justify-center text-primary text-xs font-bold flex-shrink-0">
@@ -94,7 +92,7 @@ export default function AdminPatientsPage() {
           </div>
         )}
       </div>
-      {selected && <PatientModal patient={selected} onClose={() => setSelected(null)} />}
+      {selected && <PatientModal patient={selected} onClose={() => setSelected(null)} onMutate={mutate} />}
     </div>
   )
 }

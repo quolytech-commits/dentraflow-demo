@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { MOCK_APPOINTMENTS, Appointment } from '@/lib/mock-data'
+import { Appointment } from '@/lib/mock-data'
 
 const DAYS_SQ = ['Hën', 'Mar', 'Mër', 'Enj', 'Pre', 'Sht', 'Die']
 const MONTHS_SQ = ['Janar', 'Shkurt', 'Mars', 'Prill', 'Maj', 'Qershor', 'Korrik', 'Gusht', 'Shtator', 'Tetor', 'Nëntor', 'Dhjetor']
@@ -23,14 +23,16 @@ interface CalendarWidgetProps {
   filterDoctor?: string
 }
 
-export function CalendarWidget({ appointments = MOCK_APPOINTMENTS, filterDoctor }: CalendarWidgetProps) {
+export function CalendarWidget({ appointments = [], filterDoctor }: CalendarWidgetProps) {
   const today = new Date()
   const [current, setCurrent] = useState({ year: today.getFullYear(), month: today.getMonth() })
   const [selected, setSelected] = useState<number | null>(today.getDate())
 
   const cells = getCalendarDays(current.year, current.month)
 
-  const filtered = filterDoctor ? appointments.filter((a) => a.doctorName === filterDoctor) : appointments
+  const filtered = filterDoctor
+    ? appointments.filter((a) => a.doctorName === filterDoctor)
+    : appointments
 
   const hasAppt = (day: number) => {
     const dateStr = `${current.year}-${String(current.month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`

@@ -2,7 +2,17 @@
 
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react'
 import { useRouter } from 'next/navigation'
-import { User, MOCK_CREDENTIALS } from './mock-data'
+
+export type Role = 'admin' | 'mjek' | 'recepsion'
+
+export interface User {
+  id: string
+  name: string
+  email: string
+  role: Role
+  avatar: string
+  specialty?: string
+}
 
 interface AuthContextType {
   user: User | null
@@ -19,39 +29,41 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const router = useRouter()
 
   useEffect(() => {
-    const stored = sessionStorage.getItem('dentraflow_user')
-    if (stored) {
-      try {
-        setUser(JSON.parse(stored))
-      } catch {
-        sessionStorage.removeItem('dentraflow_user')
-      }
-    }
-    setIsLoading(false)
+    fetch('/api/auth/me', { credentials: 'include' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (data) setUser(data as User)
+      })
+      .catch(() => {})
+      .finally(() => setIsLoading(false))
   }, [])
 
   const login = async (email: string, password: string): Promise<{ success: boolean; error?: string }> => {
     setIsLoading(true)
-    // Simulate network delay
-    await new Promise((res) => setTimeout(res, 800))
-    const record = MOCK_CREDENTIALS[email.toLowerCase().trim()]
-    if (!record) {
+    try {
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ email, password }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        setIsLoading(false)
+        return { success: false, error: data.error ?? 'Gabim gjatë hyrjes.' }
+      }
+      setUser(data.user as User)
       setIsLoading(false)
-      return { success: false, error: 'Email-i nuk u gjet në sistem.' }
-    }
-    if (record.password !== password) {
+      return { success: true }
+    } catch {
       setIsLoading(false)
-      return { success: false, error: 'Fjalëkalimi është i gabuar.' }
+      return { success: false, error: 'Gabim rrjeti. Kontrolloni lidhjen tuaj.' }
     }
-    setUser(record.user)
-    sessionStorage.setItem('dentraflow_user', JSON.stringify(record.user))
-    setIsLoading(false)
-    return { success: true }
   }
 
-  const logout = () => {
+  const logout = async () => {
+    await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' })
     setUser(null)
-    sessionStorage.removeItem('dentraflow_user')
     router.replace('/login')
   }
 

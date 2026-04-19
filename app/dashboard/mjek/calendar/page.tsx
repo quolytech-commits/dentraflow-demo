@@ -1,16 +1,20 @@
 'use client'
 
+import useSWR from 'swr'
 import { Topbar } from '@/components/topbar'
 import { CalendarWidget } from '@/components/calendar-widget'
 import { useAuth } from '@/lib/auth-context'
-import { MOCK_APPOINTMENTS } from '@/lib/mock-data'
 import { StatusBadge } from '@/components/status-badge'
+import { fetcher } from '@/lib/api-client'
+import { Appointment } from '@/lib/mock-data'
 import { Clock } from 'lucide-react'
 
 export default function DoctorCalendarPage() {
   const { user } = useAuth()
-  const doctorName = user?.name ?? 'Dr. Andi Hoxha'
-  const myAppts = MOCK_APPOINTMENTS.filter((a) => a.doctorName === doctorName)
+  const doctorName = user?.name ?? ''
+
+  const { data: appointments = [] } = useSWR<Appointment[]>('/api/appointments', fetcher, { refreshInterval: 15000 })
+  const myAppts = appointments.filter((a: Appointment) => a.doctorName === doctorName)
 
   return (
     <div className="flex-1 flex flex-col">
@@ -28,7 +32,7 @@ export default function DoctorCalendarPage() {
                   <Clock className="size-8 text-muted-foreground/50 mx-auto mb-2" />
                   <p className="text-sm text-muted-foreground">Nuk ka termine</p>
                 </div>
-              ) : myAppts.map((a) => (
+              ) : myAppts.map((a: Appointment) => (
                 <div key={a.id} className="bg-card border border-border rounded-2xl flex items-center gap-3 px-4 py-3 hover:bg-secondary/20 transition-colors">
                   <div className="flex items-center gap-1 text-accent flex-shrink-0 min-w-[60px]">
                     <Clock className="size-3.5" />

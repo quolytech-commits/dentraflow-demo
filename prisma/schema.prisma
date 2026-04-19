@@ -1,0 +1,130 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum Role {
+  admin
+  mjek
+  recepsion
+}
+
+enum PatientStatus {
+  ne_pritje
+  ne_trajtim
+  perfunduar
+}
+
+enum AppointmentStatus {
+  ne_pritje
+  ne_trajtim
+  perfunduar
+  anuluar
+}
+
+enum PaymentStatus {
+  paguar
+  papaguar
+  pjeserisht
+}
+
+model User {
+  id           String   @id @default(cuid())
+  name         String
+  email        String   @unique
+  passwordHash String
+  role         Role
+  avatar       String?
+  specialty    String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  appointments Appointment[] @relation("DoctorAppointments")
+  treatments   Treatment[]   @relation("DoctorTreatments")
+  patients     Patient[]     @relation("PrimaryDoctor")
+
+  @@map("users")
+}
+
+model Patient {
+  id            String        @id @default(cuid())
+  name          String
+  age           Int?
+  phone         String?
+  email         String?
+  status        PatientStatus @default(ne_pritje)
+  notes         String?
+  medicalHistory String[]
+  lastVisit     DateTime?
+  doctorId      String?
+  doctor        User?         @relation("PrimaryDoctor", fields: [doctorId], references: [id])
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  appointments Appointment[]
+  treatments   Treatment[]
+  payments     Payment[]
+
+  @@map("patients")
+}
+
+model Appointment {
+  id        String            @id @default(cuid())
+  patientId String
+  patient   Patient           @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  doctorId  String
+  doctor    User              @relation("DoctorAppointments", fields: [doctorId], references: [id])
+  date      String
+  time      String
+  type      String
+  status    AppointmentStatus @default(ne_pritje)
+  notes     String?
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+
+  @@map("appointments")
+}
+
+model Treatment {
+  id          String   @id @default(cuid())
+  patientId   String
+  patient     Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  doctorId    String
+  doctor      User     @relation("DoctorTreatments", fields: [doctorId], references: [id])
+  description String
+  cost        Float?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("treatments")
+}
+
+model Payment {
+  id        String        @id @default(cuid())
+  patientId String
+  patient   Patient       @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  amount    Float
+  status    PaymentStatus @default(papaguar)
+  service   String
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  @@map("payments")
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String?
+  role      Role?
+  message   String
+  type      String   @default("info")
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@map("notifications")
+}

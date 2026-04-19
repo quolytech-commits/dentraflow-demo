@@ -1,21 +1,23 @@
 'use client'
 
-import { useState } from 'react'
+import useSWR from 'swr'
 import { Topbar } from '@/components/topbar'
 import { StatusBadge } from '@/components/status-badge'
 import { StatCard } from '@/components/stat-card'
 import { CreditCard, TrendingUp } from 'lucide-react'
-import { MOCK_PAYMENTS } from '@/lib/mock-data'
+import { fetcher, api } from '@/lib/api-client'
+import { Payment } from '@/lib/mock-data'
 
 export default function BillingPage() {
-  const [payments, setPayments] = useState(MOCK_PAYMENTS)
+  const { data: payments = [], mutate } = useSWR<Payment[]>('/api/payments', fetcher, { refreshInterval: 15000 })
 
-  const markPaid = (id: string) => {
-    setPayments(payments.map((p) => p.id === id ? { ...p, status: 'paguar' as const } : p))
+  const markPaid = async (id: string) => {
+    await api.put(`/api/payments/${id}`, { status: 'paguar' })
+    mutate()
   }
 
-  const paid = payments.filter((p) => p.status === 'paguar').reduce((s, p) => s + p.amount, 0)
-  const unpaidAmt = payments.filter((p) => p.status !== 'paguar').reduce((s, p) => s + p.amount, 0)
+  const paid = payments.filter((p: Payment) => p.status === 'paguar').reduce((s, p) => s + p.amount, 0)
+  const unpaidAmt = payments.filter((p: Payment) => p.status !== 'paguar').reduce((s, p) => s + p.amount, 0)
 
   return (
     <div className="flex-1 flex flex-col">
@@ -39,7 +41,7 @@ export default function BillingPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
-                {payments.map((p) => (
+                {payments.map((p: Payment) => (
                   <tr key={p.id} className="hover:bg-secondary/30 transition-colors">
                     <td className="px-4 py-3 text-sm font-medium text-foreground">{p.patientName}</td>
                     <td className="px-4 py-3 text-sm text-muted-foreground hidden sm:table-cell">{p.service}</td>
@@ -51,6 +53,7 @@ export default function BillingPage() {
                           Shëno Paguar
                         </button>
                       )}
+                      {p.status === 'paguar' && <span className="text-xs text-muted-foreground">Paguar</span>}
                     </td>
                   </tr>
                 ))}

@@ -1,10 +1,18 @@
 'use client'
 
 import { useState } from 'react'
+import useSWR from 'swr'
 import { FileText, Download, CheckCircle } from 'lucide-react'
 import { Topbar } from '@/components/topbar'
 import { StatCard } from '@/components/stat-card'
-import { MOCK_PATIENTS, MOCK_APPOINTMENTS, MOCK_PAYMENTS } from '@/lib/mock-data'
+import { fetcher } from '@/lib/api-client'
+
+interface Stats {
+  totalPatients: number
+  pendingAppointments: number
+  completedAppointments: number
+  totalRevenue: number
+}
 
 const REPORTS = [
   { id: 'r1', title: 'Raporti Mujor i Termineve', date: '2026-04-01', type: 'Termin', size: '124 KB' },
@@ -14,7 +22,7 @@ const REPORTS = [
 ]
 
 export default function AdminReportsPage() {
-  const revenue = MOCK_PAYMENTS.filter((p) => p.status === 'paguar').reduce((s, p) => s + p.amount, 0)
+  const { data: stats } = useSWR<Stats>('/api/stats', fetcher, { refreshInterval: 30000 })
   const [downloading, setDownloading] = useState<string | null>(null)
   const [downloaded, setDownloaded] = useState<Set<string>>(new Set())
 
@@ -23,17 +31,18 @@ export default function AdminReportsPage() {
     await new Promise((r) => setTimeout(r, 1200))
     setDownloading(null)
     setDownloaded((prev) => new Set([...prev, id]))
-    // Reset after 3s
     setTimeout(() => setDownloaded((prev) => { const s = new Set(prev); s.delete(id); return s }), 3000)
   }
+
+  const revenue = stats?.totalRevenue ?? 0
 
   return (
     <div className="flex-1 flex flex-col">
       <Topbar title="Raportet" />
       <div className="flex-1 p-4 lg:p-6 space-y-6 overflow-y-auto">
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <StatCard label="Pacientë Total" value={String(MOCK_PATIENTS.length)} icon={FileText} iconBg="bg-blue-50" iconColor="text-blue-600" />
-          <StatCard label="Termine Total" value={String(MOCK_APPOINTMENTS.length)} icon={FileText} iconBg="bg-amber-50" iconColor="text-amber-600" />
+          <StatCard label="Pacientë Total" value={String(stats?.totalPatients ?? '—')} icon={FileText} iconBg="bg-blue-50" iconColor="text-blue-600" />
+          <StatCard label="Termine të Kryera" value={String(stats?.completedAppointments ?? '—')} icon={FileText} iconBg="bg-amber-50" iconColor="text-amber-600" />
           <StatCard label="Të Ardhura" value={`${(revenue / 1000).toFixed(0)}K L`} icon={FileText} iconBg="bg-green-50" iconColor="text-green-600" />
         </div>
 
@@ -56,11 +65,7 @@ export default function AdminReportsPage() {
                   <button
                     onClick={() => handleDownload(r.id)}
                     disabled={isDownloading}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-all border ${
-                      isDone
-                        ? 'border-green-200 bg-green-50 text-green-700'
-                        : 'border-border text-muted-foreground hover:bg-secondary hover:text-foreground'
-                    } disabled:opacity-60 disabled:cursor-not-allowed`}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-all border ${isDone ? 'border-green-200 bg-green-50 text-green-700' : 'border-border text-muted-foreground hover:bg-secondary hover:text-foreground'} disabled:opacity-60 disabled:cursor-not-allowed`}
                   >
                     {isDownloading ? (
                       <><div className="size-3.5 border-2 border-current/30 border-t-current rounded-full animate-spin" /><span className="hidden sm:block">Duke shkarkuar...</span></>

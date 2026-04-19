@@ -1,24 +1,23 @@
 'use client'
 
 import { useState } from 'react'
+import useSWR from 'swr'
 import { Search } from 'lucide-react'
 import { Topbar } from '@/components/topbar'
 import { StatusBadge } from '@/components/status-badge'
 import { PatientModal } from '@/components/patient-modal'
-import { useAuth } from '@/lib/auth-context'
-import { MOCK_PATIENTS, Patient } from '@/lib/mock-data'
+import { fetcher } from '@/lib/api-client'
+import { Patient } from '@/lib/mock-data'
 
 export default function DoctorPatientsPage() {
-  const { user } = useAuth()
-  const doctorName = user?.name ?? 'Dr. Andi Hoxha'
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<string>('all')
   const [selected, setSelected] = useState<Patient | null>(null)
 
-  const myPatients = MOCK_PATIENTS.filter((p) =>
-    p.doctor === doctorName &&
-    p.name.toLowerCase().includes(search.toLowerCase()) &&
-    (statusFilter === 'all' || p.status === statusFilter)
+  const { data: patients = [], mutate } = useSWR<Patient[]>(
+    `/api/patients?search=${encodeURIComponent(search)}&status=${statusFilter}`,
+    fetcher,
+    { refreshInterval: 15000 }
   )
 
   return (
@@ -45,10 +44,10 @@ export default function DoctorPatientsPage() {
             <option value="ne-trajtim">Në Trajtim</option>
             <option value="perfunduar">Përfunduar</option>
           </select>
-          <span className="text-sm text-muted-foreground">{myPatients.length} pacientë</span>
+          <span className="text-sm text-muted-foreground">{patients.length} pacientë</span>
         </div>
 
-        {myPatients.length === 0 ? (
+        {patients.length === 0 ? (
           <div className="bg-card border border-border rounded-2xl p-12 text-center">
             <Search className="size-10 text-muted-foreground/50 mx-auto mb-3" />
             <p className="text-foreground font-medium">Nuk u gjetën pacientë</p>
@@ -56,7 +55,7 @@ export default function DoctorPatientsPage() {
           </div>
         ) : (
           <div className="space-y-2">
-            {myPatients.map((p) => (
+            {patients.map((p: Patient) => (
               <button
                 key={p.id}
                 onClick={() => setSelected(p)}
@@ -81,7 +80,7 @@ export default function DoctorPatientsPage() {
           </div>
         )}
       </div>
-      {selected && <PatientModal patient={selected} onClose={() => setSelected(null)} />}
+      {selected && <PatientModal patient={selected} onClose={() => setSelected(null)} onMutate={mutate} />}
     </div>
   )
 }

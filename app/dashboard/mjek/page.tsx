@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import useSWR from 'swr'
 import { Users, Calendar, Clock, CheckCircle, Search, ChevronDown } from 'lucide-react'
 import { Topbar } from '@/components/topbar'
 import { StatCard } from '@/components/stat-card'
@@ -8,42 +9,55 @@ import { StatusBadge } from '@/components/status-badge'
 import { CalendarWidget } from '@/components/calendar-widget'
 import { PatientModal } from '@/components/patient-modal'
 import { useAuth } from '@/lib/auth-context'
-import { MOCK_PATIENTS, MOCK_APPOINTMENTS, Patient, Appointment } from '@/lib/mock-data'
+import { fetcher, api } from '@/lib/api-client'
+import { Patient, Appointment } from '@/lib/mock-data'
 
 type AppStatus = 'ne-pritje' | 'ne-trajtim' | 'perfunduar' | 'anuluar'
 
 export default function DoctorDashboard() {
   const { user } = useAuth()
-  const doctorName = user?.name ?? 'Dr. Andi Hoxha'
-
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null)
   const [searchQ, setSearchQ] = useState('')
   const [statusFilter, setStatusFilter] = useState<string>('all')
-  const [appointments, setAppointments] = useState<Appointment[]>(MOCK_APPOINTMENTS)
 
-  // Filter appointments and patients for the logged-in doctor
-  const myPatients = MOCK_PATIENTS.filter((p) => p.doctor === doctorName)
-  const myAppts = appointments.filter((a) => a.doctorName === doctorName)
-  const todayAppts = myAppts.filter((a) => a.date === '2026-04-20')
+  const today = new Date().toISOString().split('T')[0]
 
-  const filtered = myPatients
+  const { data: patients = [], mutate: mutatePatients } = useSWR<Patient[]>(
+    '/api/patients',
+    fetcher,
+    { refreshInterval: 15000 }
+  )
+
+  const { data: appointments = [], mutate: mutateAppts } = useSWR<Appointment[]>(
+    '/api/appointments',
+    fetcher,
+    { refreshInterval: 15000 }
+  )
+
+  const doctorName = user?.name ?? ''
+  const todayAppts = appointments.filter((a) => a.date === today)
+
+  const filtered = patients
     .filter((p) => p.name.toLowerCase().includes(searchQ.toLowerCase()))
     .filter((p) => statusFilter === 'all' || p.status === statusFilter)
 
-  const changeApptStatus = (id: string, status: AppStatus) => {
-    setAppointments((prev) => prev.map((a) => a.id === id ? { ...a, status } : a))
+  const changeApptStatus = async (id: string, status: AppStatus) => {
+    await api.put(`/api/appointments/${id}`, { status })
+    mutateAppts()
   }
+
+  const myAppts = appointments.filter((a) => a.doctorName === doctorName)
 
   return (
     <div className="flex-1 flex flex-col">
-      <Topbar title={`Paneli Im — ${doctorName}`} />
+      <Topbar title={`Paneli Im — ${doctorName || 'Duke ngarkuar...'}`} />
 
       <div className="flex-1 p-4 lg:p-6 space-y-6 overflow-y-auto">
         {/* Stats */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <StatCard label="Pacientët e Mi" value={String(myPatients.length)} subtext="Në ngarkim tim" icon={Users} iconBg="bg-blue-50" iconColor="text-blue-600" />
+          <StatCard label="Pacientët e Mi" value={String(patients.length)} subtext="Në ngarkim tim" icon={Users} iconBg="bg-blue-50" iconColor="text-blue-600" />
           <StatCard label="Termine Sot" value={String(todayAppts.length)} subtext="Në ditën e sotme" icon={Calendar} iconBg="bg-amber-50" iconColor="text-amber-600" />
-          <StatCard label="Të Përfunduara" value={String(myPatients.filter((p) => p.status === 'perfunduar').length)} subtext="Trajtime të kryera" icon={CheckCircle} iconBg="bg-green-50" iconColor="text-green-600" />
+          <StatCard label="Të Përfunduara" value={String(patients.filter((p) => p.status === 'perfunduar').length)} subtext="Trajtime të kryera" icon={CheckCircle} iconBg="bg-green-50" iconColor="text-green-600" />
         </div>
 
         <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
@@ -115,7 +129,7 @@ export default function DoctorDashboard() {
           </div>
         </div>
 
-        {/* Today's schedule with status change */}
+        {/* Today's schedule */}
         <div>
           <h2 className="font-semibold text-foreground mb-3">Orari i Sotëm</h2>
           {todayAppts.length === 0 ? (
@@ -138,7 +152,6 @@ export default function DoctorDashboard() {
                   </div>
                   <div className="flex items-center gap-2">
                     <StatusBadge status={a.status} />
-                    {/* Status dropdown */}
                     <div className="relative group/status">
                       <button className="flex items-center gap-1 px-2 py-1.5 rounded-lg border border-border bg-secondary text-xs text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">
                         <ChevronDown className="size-3" />
@@ -208,7 +221,11 @@ export default function DoctorDashboard() {
       </div>
 
       {selectedPatient && (
-        <PatientModal patient={selectedPatient} onClose={() => setSelectedPatient(null)} />
+        <PatientModal
+          patient={selectedPatient}
+          onClose={() => setSelectedPatient(null)}
+          onMutate={() => { mutatePatients(); mutateAppts() }}
+        />
       )}
     </div>
   )

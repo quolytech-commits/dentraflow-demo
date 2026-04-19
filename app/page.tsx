@@ -7,19 +7,18 @@ export default function Home() {
   const router = useRouter()
 
   useEffect(() => {
-    const stored = sessionStorage.getItem('dentraflow_user')
-    if (stored) {
-      try {
-        const user = JSON.parse(stored)
+    fetch('/api/auth/me', { credentials: 'include' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((user) => {
+        if (!user) {
+          router.replace('/login')
+          return
+        }
         if (user.role === 'admin') router.replace('/dashboard/admin')
         else if (user.role === 'mjek') router.replace('/dashboard/mjek')
         else router.replace('/dashboard/recepsion')
-        return
-      } catch {
-        sessionStorage.removeItem('dentraflow_user')
-      }
-    }
-    router.replace('/login')
+      })
+      .catch(() => router.replace('/login'))
   }, [router])
 
   return (
