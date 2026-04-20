@@ -16,7 +16,7 @@ export interface User {
 
 interface AuthContextType {
   user: User | null
-  login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>
+  login: (email: string, password: string) => Promise<{ success: boolean; error?: string; user?: User }>
   logout: () => void
   isLoading: boolean
 }
@@ -38,7 +38,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .finally(() => setIsLoading(false))
   }, [])
 
-  const login = async (email: string, password: string): Promise<{ success: boolean; error?: string }> => {
+  const login = async (email: string, password: string): Promise<{ success: boolean; error?: string; user?: User }> => {
     setIsLoading(true)
     try {
       const res = await fetch('/api/auth/login', {
@@ -54,7 +54,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
       setUser(data.user as User)
       setIsLoading(false)
-      return { success: true }
+      return { success: true, user: data.user as User }
     } catch {
       setIsLoading(false)
       return { success: false, error: 'Gabim rrjeti. Kontrolloni lidhjen tuaj.' }

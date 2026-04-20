@@ -25,14 +25,10 @@ export default function LoginPage() {
       setError(result.error || 'Gabim gjatë hyrjes.')
       return
     }
-    // Redirect based on stored user role
-    const stored = sessionStorage.getItem('dentraflow_user')
-    if (stored) {
-      const user = JSON.parse(stored)
-      if (user.role === 'admin') router.push('/dashboard/admin')
-      else if (user.role === 'mjek') router.push('/dashboard/mjek')
-      else router.push('/dashboard/recepsion')
-    }
+    const role = result.user?.role
+    if (role === 'admin') router.push('/dashboard/admin')
+    else if (role === 'mjek') router.push('/dashboard/mjek')
+    else router.push('/dashboard/recepsion')
   }
 
   const fillCredentials = (role: 'admin' | 'mjek' | 'recepsion') => {
@@ -78,7 +74,7 @@ export default function LoginPage() {
             ))}
           </div>
         </div>
-        <p className="text-white/30 text-xs">© 2026 DentraFlow. Të gjitha të drejtat e rezervuara.</p>
+        <p className="text-white/30 text-xs">© 2026 QuolyTech — Made by QuolyTech.com</p>
       </div>
 
       {/* Right panel */}
